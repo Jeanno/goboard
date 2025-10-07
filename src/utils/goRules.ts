@@ -1,4 +1,4 @@
-import { StoneColor, Position, BoardState } from '../types';
+import { StoneColor, Position } from '../types';
 
 export function createEmptyBoard(size: number): StoneColor[][] {
   return Array(size).fill(null).map(() => Array(size).fill(null));

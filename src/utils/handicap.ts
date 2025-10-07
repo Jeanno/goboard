@@ -3,8 +3,6 @@ import { Position } from '../types';
 export function getHandicapPositions(boardSize: number, handicap: number): Position[] {
   if (handicap === 0) return [];
 
-  const positions: Position[] = [];
-
   // Define star points for different board sizes
   let starPoints: { [key: number]: Position[] } = {};
 

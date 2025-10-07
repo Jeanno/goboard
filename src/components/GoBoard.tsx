@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect } from 'react';
 import { BoardState, Position } from '../types';
 import './GoBoard.css';
 
@@ -64,7 +64,7 @@ function drawWoodTexture(ctx: CanvasRenderingContext2D, width: number, height: n
 
 export function GoBoard({ gameState, onPlaceStone }: GoBoardProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [cellSize, setCellSize] = useState(40);
+  const cellSize = 40;
   const padding = 30;
 
   // Calculate canvas size - use boardSize - 1 because grid lines are between intersections

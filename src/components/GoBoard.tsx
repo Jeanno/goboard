@@ -7,13 +7,68 @@ interface GoBoardProps {
   onPlaceStone: (pos: Position) => void;
 }
 
+function drawWoodTexture(ctx: CanvasRenderingContext2D, width: number, height: number, isDark: boolean) {
+  // Base wood colors
+  const baseColor = isDark ? '#4a3828' : '#d4a574';
+  const grainColor = isDark ? '#3d2f22' : '#b8935f';
+
+  // Fill base color
+  ctx.fillStyle = baseColor;
+  ctx.fillRect(0, 0, width, height);
+
+  // Draw wood grain lines
+  ctx.strokeStyle = grainColor;
+  ctx.lineWidth = 0.5;
+  ctx.globalAlpha = 0.3;
+
+  // Horizontal grain lines
+  for (let y = 0; y < height; y += 3) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+
+    // Create wavy line for wood grain
+    for (let x = 0; x < width; x += 5) {
+      const noise = Math.sin(x * 0.02 + y * 0.1) * 2;
+      ctx.lineTo(x, y + noise);
+    }
+
+    ctx.stroke();
+  }
+
+  // Add some vertical variations for realism
+  ctx.globalAlpha = 0.15;
+  for (let x = 0; x < width; x += 40) {
+    const gradient = ctx.createLinearGradient(x, 0, x + 30, 0);
+    gradient.addColorStop(0, 'transparent');
+    gradient.addColorStop(0.5, grainColor);
+    gradient.addColorStop(1, 'transparent');
+
+    ctx.fillStyle = gradient;
+    ctx.fillRect(x, 0, 30, height);
+  }
+
+  // Add subtle noise texture
+  const imageData = ctx.getImageData(0, 0, width, height);
+  const data = imageData.data;
+
+  for (let i = 0; i < data.length; i += 4) {
+    const noise = (Math.random() - 0.5) * 10;
+    data[i] += noise;     // red
+    data[i + 1] += noise; // green
+    data[i + 2] += noise; // blue
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+  ctx.globalAlpha = 1.0;
+}
+
 export function GoBoard({ gameState, onPlaceStone }: GoBoardProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [cellSize, setCellSize] = useState(40);
   const padding = 30;
 
-  // Calculate canvas size
-  const canvasSize = gameState.boardSize * cellSize + padding * 2;
+  // Calculate canvas size - use boardSize - 1 because grid lines are between intersections
+  const canvasSize = (gameState.boardSize - 1) * cellSize + padding * 2;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -25,13 +80,12 @@ export function GoBoard({ gameState, onPlaceStone }: GoBoardProps) {
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Set canvas background
-    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    ctx.fillStyle = isDark ? '#1a1a1a' : '#DCB35C';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Draw wood texture background (always use light mode)
+    const isDark = false;
+    drawWoodTexture(ctx, canvas.width, canvas.height, isDark);
 
     // Draw grid lines
-    ctx.strokeStyle = isDark ? '#666' : '#000';
+    ctx.strokeStyle = '#000';
     ctx.lineWidth = 1;
 
     for (let i = 0; i < gameState.boardSize; i++) {
@@ -50,7 +104,7 @@ export function GoBoard({ gameState, onPlaceStone }: GoBoardProps) {
 
     // Draw star points (for standard board sizes)
     const starPoints = getStarPoints(gameState.boardSize);
-    ctx.fillStyle = isDark ? '#666' : '#000';
+    ctx.fillStyle = '#000';
     starPoints.forEach(({ row, col }) => {
       ctx.beginPath();
       ctx.arc(
@@ -101,8 +155,13 @@ export function GoBoard({ gameState, onPlaceStone }: GoBoardProps) {
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
+
+    // Account for canvas scaling (when displayed size differs from internal size)
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
+    const x = (event.clientX - rect.left) * scaleX;
+    const y = (event.clientY - rect.top) * scaleY;
 
     // Convert to board coordinates
     const col = Math.round((x - padding) / cellSize);

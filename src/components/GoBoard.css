@@ -1,7 +1,6 @@
 .go-board-canvas {
   cursor: pointer;
-  border: 2px solid #8b7355;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
   border-radius: 4px;
   display: block;
   margin: 0 auto;

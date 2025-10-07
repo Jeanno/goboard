@@ -17,10 +17,19 @@ export interface BoardState {
   handicapStones: number;
   komi: number;
   history: StoneColor[][][];
+  historyIndex: number;
 }
 
 export interface GameConfig {
   boardSize: number;
   handicapStones: number;
   komi: number;
+}
+
+export interface GameRecord {
+  id: string;
+  name: string;
+  state: BoardState;
+  createdAt: string;
+  updatedAt: string;
 }

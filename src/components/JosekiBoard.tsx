@@ -49,11 +49,13 @@ export function JosekiBoard({
 
     candidates.forEach((node, i) => {
       if (!node.move) return;
-      drawCandidateMarker(ctx, node.move.row, node.move.col, i + 1, {
-        hasChildren: node.children.length > 0,
-        hasComment: Boolean(node.comment),
-        isHover: i === hoverIdx,
-      });
+      const kind =
+        node.children.length === 0
+          ? 'leaf'
+          : node.comment
+            ? 'annotated'
+            : 'branch';
+      drawCandidateMarker(ctx, node.move.row, node.move.col, i + 1, kind, i === hoverIdx);
     });
   }, [stones, candidates, lastMove, boardSize, hoverIdx]);
 

@@ -1,10 +1,10 @@
 import { useState, useCallback, useEffect } from 'react';
 import { BoardState, Position, GameConfig } from '../types';
 import {
+  applyMoveToBoard,
   createEmptyBoard,
   copyBoard,
   isValidMove,
-  getCapturedGroups,
 } from '../utils/goRules';
 import { getHandicapPositions } from '../utils/handicap';
 import {
@@ -79,28 +79,13 @@ export function useGoGame(config: GameConfig) {
       return false;
     }
 
-    // Create new board state
     const newBoard = copyBoard(stones);
-    newBoard[pos.row][pos.col] = currentPlayer;
-
-    // Capture opponent stones
+    const { capturedCount, ko: newKoPosition } = applyMoveToBoard(
+      newBoard,
+      { row: pos.row, col: pos.col, color: currentPlayer },
+      boardSize,
+    );
     const opponentColor = currentPlayer === 'black' ? 'white' : 'black';
-    const capturedGroups = getCapturedGroups(newBoard, opponentColor, boardSize);
-
-    let capturedCount = 0;
-    let newKoPosition: Position | null = null;
-
-    capturedGroups.forEach(group => {
-      capturedCount += group.length;
-      group.forEach(p => {
-        newBoard[p.row][p.col] = null;
-      });
-    });
-
-    // Check for ko: if exactly one stone was captured, record position
-    if (capturedCount === 1 && capturedGroups.length === 1) {
-      newKoPosition = capturedGroups[0][0];
-    }
 
     // If we're not at the end of history, truncate the future moves
     const newHistory = historyIndex < history.length - 1

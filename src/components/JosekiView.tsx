@@ -13,18 +13,36 @@ interface JosekiViewProps {
   tree: JosekiTree;
 }
 
+const HINT_OFFTREE =
+  "You're exploring outside the joseki tree. Click anywhere to keep playing; ◀ Back unwinds your moves and returns to the tree.";
+const HINT_NOCOMMENT =
+  'Click a numbered marker to follow a joseki line, or click anywhere else on the board to explore freely.';
+
 export function JosekiView({ tree }: JosekiViewProps) {
   const browser = useJosekiBrowser(tree);
+  const { goBack, isAtStart, isOffTree, comment, candidates, captured, depth } = browser;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft') browser.goBack();
+      if (e.key === 'ArrowLeft') goBack();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [browser]);
+  }, [goBack]);
 
-  const isAtStart = browser.path.length <= 1 && browser.freeplay.length === 0;
+  let commentText: string;
+  let isHint = false;
+  if (isOffTree) {
+    commentText = HINT_OFFTREE;
+    isHint = true;
+  } else if (comment) {
+    commentText = comment;
+  } else {
+    commentText = HINT_NOCOMMENT;
+    isHint = true;
+  }
+
+  const showLeafNote = !isOffTree && candidates.length === 0 && !isAtStart;
 
   return (
     <div className="joseki-view">
@@ -32,7 +50,7 @@ export function JosekiView({ tree }: JosekiViewProps) {
         <JosekiBoard
           boardSize={tree.boardSize}
           stones={browser.stones}
-          candidates={browser.candidates}
+          candidates={candidates}
           lastMove={browser.lastMove}
           onAdvance={browser.advance}
           onFreePlay={browser.placeFree}
@@ -41,41 +59,23 @@ export function JosekiView({ tree }: JosekiViewProps) {
 
       <aside className="joseki-sidebar">
         <div className="joseki-meta">
-          <div className="joseki-depth">Move {browser.depth}</div>
-          {browser.isOffTree && (
-            <span className="joseki-badge">Off tree · free play</span>
-          )}
-          {(browser.captured.black > 0 || browser.captured.white > 0) && (
+          <div className="joseki-depth">Move {depth}</div>
+          {isOffTree && <span className="joseki-badge">Off tree · free play</span>}
+          {(captured.black > 0 || captured.white > 0) && (
             <span className="joseki-captures">
-              Captured · B {browser.captured.black} / W {browser.captured.white}
+              Captured · B {captured.black} / W {captured.white}
             </span>
           )}
         </div>
 
-        {browser.isOffTree ? (
-          <div className="joseki-comment muted">
-            You're exploring outside the joseki tree. Click anywhere to keep
-            playing; ◀ Back unwinds your moves and returns to the tree.
-          </div>
-        ) : browser.currentNode?.comment ? (
-          <div className="joseki-comment">{browser.currentNode.comment}</div>
-        ) : (
-          <div className="joseki-comment muted">
-            Click a numbered marker to follow a joseki line, or click anywhere
-            else on the board to explore freely.
-          </div>
-        )}
+        <div className={`joseki-comment${isHint ? ' muted' : ''}`}>{commentText}</div>
 
-        {!browser.isOffTree && browser.candidates.length === 0 && !isAtStart && (
+        {showLeafNote && (
           <div className="joseki-leaf-note">End of this line in the dictionary.</div>
         )}
 
         <div className="joseki-controls">
-          <button
-            onClick={browser.goBack}
-            disabled={isAtStart}
-            title="Back (←)"
-          >
+          <button onClick={goBack} disabled={isAtStart} title="Back (←)">
             ◀ Back
           </button>
           <button onClick={browser.reset} disabled={isAtStart} title="Reset to start">

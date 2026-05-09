@@ -1,4 +1,4 @@
-import { StoneColor, Position } from '../types';
+import { PlayerColor, Position, StoneColor } from '../types';
 
 export function createEmptyBoard(size: number): StoneColor[][] {
   return Array(size).fill(null).map(() => Array(size).fill(null));
@@ -128,6 +128,25 @@ export function isValidMove(
   }
 
   return { valid: true };
+}
+
+export function applyMoveToBoard(
+  board: StoneColor[][],
+  move: { row: number; col: number; color: PlayerColor },
+  boardSize: number,
+): { capturedCount: number; ko: Position | null } {
+  board[move.row][move.col] = move.color;
+  const opp: PlayerColor = move.color === 'black' ? 'white' : 'black';
+  const groups = getCapturedGroups(board, opp, boardSize);
+
+  let capturedCount = 0;
+  for (const g of groups) {
+    capturedCount += g.length;
+    for (const p of g) board[p.row][p.col] = null;
+  }
+
+  const ko = capturedCount === 1 && groups.length === 1 ? groups[0][0] : null;
+  return { capturedCount, ko };
 }
 
 export function boardsEqual(board1: StoneColor[][], board2: StoneColor[][]): boolean {

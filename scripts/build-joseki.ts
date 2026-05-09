@@ -1,9 +1,11 @@
-import sgf from '@sabaki/sgf';
-const { parseFile } = sgf as unknown as { parseFile: (path: string) => unknown };
 import { createHash } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import sgf from '@sabaki/sgf';
+import type { JosekiNode, JosekiTree } from '../src/types';
+
+const { parseFile } = sgf as unknown as { parseFile: (path: string) => unknown };
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
@@ -17,24 +19,10 @@ interface SgfNode {
   children: SgfNode[];
 }
 
-interface JosekiNode {
-  id: string;
-  move: { row: number; col: number; color: 'black' | 'white' } | null;
-  children: string[];
-  comment?: string;
-}
-
-interface JosekiTree {
-  rootIds: string[];
-  rootNames: Record<string, string>;
-  nodes: Record<string, JosekiNode>;
-  boardSize: 19;
-}
-
-function sgfToCoord(sgf: string): { row: number; col: number } | null {
-  if (sgf.length !== 2) return null;
-  const col = sgf.charCodeAt(0) - 97;
-  const row = sgf.charCodeAt(1) - 97;
+function sgfToCoord(coord: string): { row: number; col: number } | null {
+  if (coord.length !== 2) return null;
+  const col = coord.charCodeAt(0) - 97;
+  const row = coord.charCodeAt(1) - 97;
   if (col < 0 || col >= BOARD_SIZE || row < 0 || row >= BOARD_SIZE) return null;
   return { row, col };
 }
@@ -65,7 +53,7 @@ function hashId(parentId: string, move: JosekiNode['move']): string {
   return createHash('sha1').update(key).digest('hex').slice(0, 12);
 }
 
-let stats = {
+const stats = {
   sgfNodesVisited: 0,
   emitted: 0,
   skippedInvalidMove: 0,
@@ -89,7 +77,6 @@ function buildTree(sgfRoot: SgfNode): JosekiTree {
   const nodes: Record<string, JosekiNode> = {};
   const ROOT_ID = 'root';
 
-  // Synthetic root — its children come from flattening Kogo's root chain.
   const root: JosekiNode = {
     id: ROOT_ID,
     move: null,
@@ -98,37 +85,38 @@ function buildTree(sgfRoot: SgfNode): JosekiTree {
   };
   nodes[ROOT_ID] = root;
 
-  // Gather candidate children from a SGF node, flattening transit nodes
-  // (no-move section headers) so only move-bearing nodes become candidates.
   function gatherChildren(sgfNode: SgfNode, parentJosekiId: string): string[] {
     const out: string[] = [];
+    const seen = new Set<string>();
+    const push = (id: string) => {
+      if (!seen.has(id)) {
+        seen.add(id);
+        out.push(id);
+      }
+    };
+
     for (const child of sgfNode.children) {
       stats.sgfNodesVisited++;
-      // Skip pass moves entirely (and their subtrees)
       if (hasMoveProp(child) && isPassOrEmpty(child)) {
         stats.skippedPass++;
         continue;
       }
-      // Skip AB/AW-only setup nodes (handicap setups in joseki context)
       if (
         !hasMoveProp(child) &&
         (child.data.AB !== undefined || child.data.AW !== undefined)
       ) {
         stats.skippedAB++;
-        // Still flatten through to its children
-        out.push(...gatherChildren(child, parentJosekiId));
+        for (const id of gatherChildren(child, parentJosekiId)) push(id);
         continue;
       }
 
       const move = extractMove(child);
       if (move) {
         const jn = buildNode(child, move, parentJosekiId);
-        if (jn) out.push(jn.id);
+        if (jn) push(jn.id);
       } else if (!hasMoveProp(child)) {
-        // Transit / section node — flatten through
-        out.push(...gatherChildren(child, parentJosekiId));
+        for (const id of gatherChildren(child, parentJosekiId)) push(id);
       } else {
-        // Has B/W but coord didn't parse
         stats.skippedInvalidMove++;
       }
     }
@@ -141,9 +129,15 @@ function buildTree(sgfRoot: SgfNode): JosekiTree {
     parentJosekiId: string,
   ): JosekiNode | null {
     const id = hashId(parentJosekiId, move);
-    if (nodes[id]) {
-      // Same path already produced this node — reuse (transposition under same parent).
-      return nodes[id];
+    const existing = nodes[id];
+    if (existing) {
+      // Transposition: same parent + same move reached via a different SGF
+      // subtree. Merge any new children we find under this revisit.
+      for (const cid of gatherChildren(sgfNode, id)) {
+        if (!existing.children.includes(cid)) existing.children.push(cid);
+      }
+      if (!existing.comment) existing.comment = extractComment(sgfNode);
+      return existing;
     }
     const node: JosekiNode = {
       id,
@@ -178,17 +172,15 @@ function main() {
   }
   const sgfRoot = collection[0];
 
-  // Validate board size if declared.
   const sz = sgfRoot.data.SZ?.[0];
   if (sz && sz !== '19' && sz !== '19:19') {
     throw new Error(`Unexpected SZ ${sz}; this script assumes 19x19.`);
   }
 
   const tree = buildTree(sgfRoot);
-
-  writeFileSync(OUT_PATH, JSON.stringify(tree));
-  const size = JSON.stringify(tree).length;
-  console.log(`Wrote ${OUT_PATH} (${(size / 1024).toFixed(1)} KB)`);
+  const serialized = JSON.stringify(tree);
+  writeFileSync(OUT_PATH, serialized);
+  console.log(`Wrote ${OUT_PATH} (${(serialized.length / 1024).toFixed(1)} KB)`);
   console.log('Stats:', stats);
   console.log(`Root has ${tree.nodes.root.children.length} starting candidates.`);
 }

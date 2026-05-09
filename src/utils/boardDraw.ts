@@ -22,7 +22,14 @@ export function rowLabel(row: number, boardSize: number): string {
   return String(boardSize - row);
 }
 
-export function drawWoodTexture(ctx: CanvasRenderingContext2D, width: number, height: number, isDark: boolean) {
+const textureCache = new Map<string, HTMLCanvasElement>();
+
+function renderWoodTexture(width: number, height: number, isDark: boolean): HTMLCanvasElement {
+  const off = document.createElement('canvas');
+  off.width = width;
+  off.height = height;
+  const ctx = off.getContext('2d')!;
+
   const baseColor = isDark ? '#4a3828' : '#d4a574';
   const grainColor = isDark ? '#3d2f22' : '#b8935f';
 
@@ -62,7 +69,17 @@ export function drawWoodTexture(ctx: CanvasRenderingContext2D, width: number, he
     data[i + 2] += noise;
   }
   ctx.putImageData(imageData, 0, 0);
-  ctx.globalAlpha = 1.0;
+  return off;
+}
+
+export function drawWoodTexture(ctx: CanvasRenderingContext2D, width: number, height: number, isDark: boolean) {
+  const key = `${width}x${height}-${isDark ? 'd' : 'l'}`;
+  let cached = textureCache.get(key);
+  if (!cached) {
+    cached = renderWoodTexture(width, height, isDark);
+    textureCache.set(key, cached);
+  }
+  ctx.drawImage(cached, 0, 0);
 }
 
 export function drawGrid(ctx: CanvasRenderingContext2D, boardSize: number) {
@@ -131,14 +148,12 @@ export function clickToIntersection(
   event: { clientX: number; clientY: number },
   canvas: HTMLCanvasElement,
   boardSize: number,
-  offsetX = 0,
-  offsetY = 0,
 ): Position | null {
   const rect = canvas.getBoundingClientRect();
   const scaleX = canvas.width / rect.width;
   const scaleY = canvas.height / rect.height;
-  const x = (event.clientX - rect.left) * scaleX - offsetX;
-  const y = (event.clientY - rect.top) * scaleY - offsetY;
+  const x = (event.clientX - rect.left) * scaleX;
+  const y = (event.clientY - rect.top) * scaleY;
 
   const col = Math.round((x - PADDING) / CELL_SIZE);
   const row = Math.round((y - PADDING) / CELL_SIZE);
@@ -167,32 +182,29 @@ export function drawCoordinateLabels(ctx: CanvasRenderingContext2D, boardSize: n
   ctx.restore();
 }
 
+export type CandidateKind = 'leaf' | 'branch' | 'annotated';
+
+const CANDIDATE_FILL: Record<CandidateKind, [string, string]> = {
+  leaf: ['#c87060', '#d97757'],
+  branch: ['#6ea25e', '#7eb371'],
+  annotated: ['#8aa055', '#9caf6a'],
+};
+
 export function drawCandidateMarker(
   ctx: CanvasRenderingContext2D,
   row: number,
   col: number,
   index: number,
-  options: {
-    hasChildren: boolean;
-    hasComment: boolean;
-    isHover: boolean;
-  },
+  kind: CandidateKind,
+  isHover: boolean,
 ) {
   const x = PADDING + col * CELL_SIZE;
   const y = PADDING + row * CELL_SIZE;
   const half = CELL_SIZE * 0.42;
-
-  let fill: string;
-  if (!options.hasChildren) {
-    fill = options.isHover ? '#d97757' : '#c87060';
-  } else if (options.hasComment) {
-    fill = options.isHover ? '#9caf6a' : '#8aa055';
-  } else {
-    fill = options.isHover ? '#7eb371' : '#6ea25e';
-  }
+  const [base, hover] = CANDIDATE_FILL[kind];
 
   ctx.save();
-  ctx.fillStyle = fill;
+  ctx.fillStyle = isHover ? hover : base;
   ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
   ctx.lineWidth = 1;
   ctx.fillRect(x - half, y - half, half * 2, half * 2);

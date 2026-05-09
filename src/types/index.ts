@@ -1,4 +1,5 @@
 export type StoneColor = 'black' | 'white' | null;
+export type PlayerColor = 'black' | 'white';
 
 export interface Position {
   row: number;
@@ -34,9 +35,15 @@ export interface GameRecord {
   updatedAt: string;
 }
 
+export interface JosekiMove {
+  row: number;
+  col: number;
+  color: PlayerColor;
+}
+
 export interface JosekiNode {
   id: string;
-  move: { row: number; col: number; color: 'black' | 'white' } | null;
+  move: JosekiMove | null;
   children: string[];
   comment?: string;
 }

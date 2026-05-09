@@ -45,6 +45,11 @@ export function JosekiView({ tree }: JosekiViewProps) {
           {browser.isOffTree && (
             <span className="joseki-badge">Off tree · free play</span>
           )}
+          {(browser.captured.black > 0 || browser.captured.white > 0) && (
+            <span className="joseki-captures">
+              Captured · B {browser.captured.black} / W {browser.captured.white}
+            </span>
+          )}
         </div>
 
         {browser.isOffTree ? (

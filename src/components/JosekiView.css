@@ -17,6 +17,7 @@
 .joseki-board-col {
   display: flex;
   justify-content: center;
+  align-items: flex-start;
 }
 
 .joseki-sidebar {
@@ -28,6 +29,9 @@
   background-color: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
   text-align: left;
+  max-height: calc(100vh - 120px);
+  position: sticky;
+  top: 1rem;
 }
 
 .joseki-meta {
@@ -52,15 +56,31 @@
   border: 1px solid rgba(217, 119, 87, 0.45);
 }
 
+.joseki-captures {
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+
 .joseki-comment {
-  font-size: 0.95rem;
-  line-height: 1.55;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  line-height: 1.5;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+  max-height: 60vh;
 }
 
 .joseki-comment.muted {
+  font-family: inherit;
+  font-size: 0.95rem;
   opacity: 0.65;
   font-style: italic;
+  flex: 0 0 auto;
+  overflow: visible;
 }
 
 .joseki-leaf-note {
@@ -124,11 +144,16 @@
 @media (max-width: 960px) {
   .joseki-view {
     grid-template-columns: minmax(0, 1fr);
+    align-items: start;
   }
 
   .joseki-sidebar {
     max-width: 720px;
     margin: 0 auto;
     width: 100%;
+  }
+
+  .joseki-comment {
+    max-height: 40vh;
   }
 }

@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
-import type { JosekiNode, JosekiTree, StoneColor } from '../types';
+import type { JosekiNode, JosekiTree, Position, StoneColor } from '../types';
+import { getCapturedGroups, isValidMove } from '../utils/goRules';
 
 export interface FreeMove {
   row: number;
@@ -17,6 +18,7 @@ export interface JosekiBrowserState {
   stones: StoneColor[][];
   lastMove: { row: number; col: number } | null;
   nextColor: 'black' | 'white';
+  captured: { black: number; white: number };
   depth: number;
   isOffTree: boolean;
   selectRoot: (rootId: string) => void;
@@ -30,6 +32,51 @@ function emptyBoard(boardSize: number): StoneColor[][] {
   return Array.from({ length: boardSize }, () =>
     Array.from({ length: boardSize }, () => null),
   );
+}
+
+interface ReplayResult {
+  stones: StoneColor[][];
+  lastMove: Position | null;
+  lastColor: 'black' | 'white' | null;
+  ko: Position | null;
+  captured: { black: number; white: number };
+}
+
+function replay(
+  tree: JosekiTree,
+  path: string[],
+  freeplay: FreeMove[],
+): ReplayResult {
+  const board = emptyBoard(tree.boardSize);
+  const captured = { black: 0, white: 0 };
+  let ko: Position | null = null;
+  let lastMove: Position | null = null;
+  let lastColor: 'black' | 'white' | null = null;
+
+  function applyMove(move: { row: number; col: number; color: 'black' | 'white' }) {
+    board[move.row][move.col] = move.color;
+    lastMove = { row: move.row, col: move.col };
+    lastColor = move.color;
+
+    const opp: 'black' | 'white' = move.color === 'black' ? 'white' : 'black';
+    const groups = getCapturedGroups(board, opp, tree.boardSize);
+    let totalCaptured = 0;
+    for (const g of groups) {
+      totalCaptured += g.length;
+      for (const p of g) board[p.row][p.col] = null;
+    }
+    captured[opp] += totalCaptured;
+
+    ko = totalCaptured === 1 && groups.length === 1 ? groups[0][0] : null;
+  }
+
+  for (const id of path) {
+    const node = tree.nodes[id];
+    if (node?.move) applyMove(node.move);
+  }
+  for (const m of freeplay) applyMove(m);
+
+  return { stones: board, lastMove, lastColor, ko, captured };
 }
 
 export function useJosekiBrowser(tree: JosekiTree): JosekiBrowserState {
@@ -53,25 +100,11 @@ export function useJosekiBrowser(tree: JosekiTree): JosekiBrowserState {
       .filter((n): n is JosekiNode => Boolean(n && n.move));
   }, [tree, currentNode, isOffTree]);
 
-  const { stones, lastMove, lastColor } = useMemo(() => {
-    const board = emptyBoard(tree.boardSize);
-    let last: { row: number; col: number } | null = null;
-    let lastCol: 'black' | 'white' | null = null;
-    for (const id of path) {
-      const node = tree.nodes[id];
-      if (node?.move) {
-        board[node.move.row][node.move.col] = node.move.color;
-        last = { row: node.move.row, col: node.move.col };
-        lastCol = node.move.color;
-      }
-    }
-    for (const m of freeplay) {
-      board[m.row][m.col] = m.color;
-      last = { row: m.row, col: m.col };
-      lastCol = m.color;
-    }
-    return { stones: board, lastMove: last, lastColor: lastCol };
-  }, [tree, path, freeplay]);
+  const replayResult = useMemo(
+    () => replay(tree, path, freeplay),
+    [tree, path, freeplay],
+  );
+  const { stones, lastMove, lastColor, ko, captured } = replayResult;
 
   const nextColor: 'black' | 'white' = lastColor === 'black' ? 'white' : 'black';
 
@@ -84,20 +117,17 @@ export function useJosekiBrowser(tree: JosekiTree): JosekiBrowserState {
     setPath((prev) => [...prev, childId]);
   }, []);
 
-  const placeFree = useCallback((row: number, col: number) => {
-    setFreeplay((prev) => {
-      // Reject occupied squares (cheap precheck against existing stones).
-      // Caller already gates this, but double-guard for safety.
-      const lastFP = prev[prev.length - 1];
-      const lastFPColor = lastFP?.color;
-      const color: 'black' | 'white' = lastFPColor
-        ? lastFPColor === 'black'
-          ? 'white'
-          : 'black'
-        : nextColor;
-      return [...prev, { row, col, color }];
-    });
-  }, [nextColor]);
+  const placeFree = useCallback(
+    (row: number, col: number) => {
+      const validation = isValidMove(stones, { row, col }, nextColor, ko, tree.boardSize);
+      if (!validation.valid) {
+        console.log('Joseki free-play rejected:', validation.reason);
+        return;
+      }
+      setFreeplay((prev) => [...prev, { row, col, color: nextColor }]);
+    },
+    [stones, nextColor, ko, tree.boardSize],
+  );
 
   const goBack = useCallback(() => {
     if (freeplay.length > 0) {
@@ -122,6 +152,7 @@ export function useJosekiBrowser(tree: JosekiTree): JosekiBrowserState {
     stones,
     lastMove,
     nextColor,
+    captured,
     depth: Math.max(0, path.length - 1) + freeplay.length,
     isOffTree,
     selectRoot,

@@ -5,25 +5,39 @@
   right: 0;
   bottom: 0;
   background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
+  z-index: 999;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
 }
 
-.games-list-modal {
-  background-color: #1a1a1a;
-  border-radius: 12px;
+.games-list-overlay.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.games-list-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
   width: 90%;
-  max-width: 600px;
-  max-height: 80vh;
+  max-width: 400px;
+  background-color: #1a1a1a;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
+}
+
+.games-list-drawer.open {
+  transform: translateX(0);
 }
 
 @media (prefers-color-scheme: light) {
-  .games-list-modal {
+  .games-list-drawer {
     background-color: #ffffff;
   }
 }
@@ -189,9 +203,9 @@
 }
 
 @media (max-width: 768px) {
-  .games-list-modal {
-    width: 95%;
-    max-height: 90vh;
+  .games-list-drawer {
+    width: 85%;
+    max-width: none;
   }
 
   .games-list-header {

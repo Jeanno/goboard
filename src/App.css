@@ -4,10 +4,44 @@
   padding: 2rem;
 }
 
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.burger-menu {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  width: 30px;
+  height: 30px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  z-index: 10;
+}
+
+.burger-menu span {
+  width: 30px;
+  height: 3px;
+  background-color: currentColor;
+  border-radius: 10px;
+  transition: all 0.3s linear;
+  position: relative;
+  transform-origin: 1px;
+}
+
+.burger-menu:hover span {
+  background-color: #646cff;
+}
+
 h1 {
   font-size: 3.2em;
   line-height: 1.1;
-  margin-bottom: 1rem;
+  margin: 0;
 }
 
 .game-info {
@@ -78,13 +112,7 @@ h1 {
   min-width: 45px;
 }
 
-.game-management {
-  display: flex;
-  gap: 0.75rem;
-}
-
-.new-game-button,
-.load-game-button {
+.new-game-button {
   padding: 0.75rem 1.5rem;
   font-size: 1rem;
   border-radius: 8px;
@@ -167,6 +195,10 @@ h1 {
 @media (max-width: 768px) {
   .App {
     padding: 1rem;
+  }
+
+  .app-header {
+    gap: 0.75rem;
   }
 
   h1 {

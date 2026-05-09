@@ -33,3 +33,17 @@ export interface GameRecord {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface JosekiNode {
+  id: string;
+  move: { row: number; col: number; color: 'black' | 'white' } | null;
+  children: string[];
+  comment?: string;
+}
+
+export interface JosekiTree {
+  rootIds: string[];
+  rootNames: Record<string, string>;
+  nodes: Record<string, JosekiNode>;
+  boardSize: 19;
+}

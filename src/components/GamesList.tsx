@@ -5,11 +5,12 @@ import './GamesList.css';
 
 interface GamesListProps {
   currentGameId: string | null;
+  isOpen: boolean;
   onSelectGame: (gameId: string) => void;
   onClose: () => void;
 }
 
-export function GamesList({ currentGameId, onSelectGame, onClose }: GamesListProps) {
+export function GamesList({ currentGameId, isOpen, onSelectGame, onClose }: GamesListProps) {
   const [games, setGames] = useState<GameRecord[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
@@ -55,8 +56,9 @@ export function GamesList({ currentGameId, onSelectGame, onClose }: GamesListPro
   };
 
   return (
-    <div className="games-list-overlay" onClick={onClose}>
-      <div className="games-list-modal" onClick={(e) => e.stopPropagation()}>
+    <>
+      <div className={`games-list-overlay ${isOpen ? 'visible' : ''}`} onClick={onClose}></div>
+      <div className={`games-list-drawer ${isOpen ? 'open' : ''}`}>
         <div className="games-list-header">
           <h2>Saved Games</h2>
           <button onClick={onClose} className="close-button">×</button>
@@ -125,6 +127,6 @@ export function GamesList({ currentGameId, onSelectGame, onClose }: GamesListPro
           )}
         </div>
       </div>
-    </div>
+    </>
   );
 }
